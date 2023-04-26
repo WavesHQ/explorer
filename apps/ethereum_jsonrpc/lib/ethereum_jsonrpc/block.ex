@@ -596,7 +596,7 @@ defmodule EthereumJSONRPC.Block do
 
   defp entry_to_elixir({"nonce" = key, nonce}) do
     # TODO (HARSH) find better alternative soln
-    if nonce == "0x0", do: {key,  1}, else: {key, quantity_to_integer(nonce)}
+    if nonce == "0x0", do: {key, 0}, else: {key, quantity_to_integer(nonce)}
   end
 
   defp entry_to_elixir({"size" = key, size}) do

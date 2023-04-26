@@ -13,9 +13,9 @@ defmodule EthereumJSONRPC.PendingTransaction do
           {:ok, [Transaction.params()]} | {:error, reason :: term}
   def fetch_pending_transactions_geth(json_rpc_named_arguments) do
     with {:ok, transaction_data} <-
-           %{id: 1, method: "txpool_content", params: []} |> request() |> json_rpc(json_rpc_named_arguments) do
+           %{id: 1, method: "eth_pendingTransactions", params: []} |> request() |> json_rpc(json_rpc_named_arguments) do
       transactions_params =
-        transaction_data["pending"]
+        transaction_data
         |> Enum.flat_map(fn {_address, nonce_transactions_map} ->
           nonce_transactions_map
           |> Enum.map(fn {_nonce, transaction} ->

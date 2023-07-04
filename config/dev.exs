@@ -13,3 +13,8 @@ config :logger, :account,
   level: :debug,
   path: Path.absname("logs/dev/account.log"),
   metadata_filter: [fetcher: :account]
+
+config :logger, :explorer,
+  level: :info,
+  path: Path.absname("logs/dev/explorer.log"),
+  rotate: %{max_bytes: 1000, keep: 5}

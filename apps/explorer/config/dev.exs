@@ -16,7 +16,6 @@ config :explorer, Explorer.Tracer, env: "dev", disabled?: true
 config :logger, :explorer,
   level: :debug,
   path: Path.absname("logs/dev/explorer.log")
-  rotate: %{max_bytes: 1000, keep: 5}
 
 config :logger, :reading_token_functions,
   level: :debug,

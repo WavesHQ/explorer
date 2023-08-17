@@ -17,18 +17,18 @@ defmodule BlockScoutWeb.Notifier do
   }
 
   alias Explorer.{Chain, Market, Repo}
+  alias Explorer.Chain.Address.Counters
   alias Explorer.Chain.{Address, InternalTransaction, Transaction}
   alias Explorer.Chain.Supply.RSK
   alias Explorer.Chain.Transaction.History.TransactionStats
   alias Explorer.Counters.{AverageBlockTime, Helper}
-  alias Explorer.ExchangeRates.Token
   alias Explorer.SmartContract.{CompilerVersion, Solidity.CodeCompiler}
   alias Phoenix.View
 
   @check_broadcast_sequence_period 500
 
   def handle_event({:chain_event, :addresses, type, addresses}) when type in [:realtime, :on_demand] do
-    Endpoint.broadcast("addresses:new_address", "count", %{count: Chain.address_estimated_count()})
+    Endpoint.broadcast("addresses:new_address", "count", %{count: Counters.address_estimated_count()})
 
     addresses
     |> Stream.reject(fn %Address{fetched_coin_balance: fetched_coin_balance} -> is_nil(fetched_coin_balance) end)
@@ -43,11 +43,6 @@ defmodule BlockScoutWeb.Notifier do
   def handle_event({:chain_event, :address_token_balances, type, address_token_balances})
       when type in [:realtime, :on_demand] do
     Enum.each(address_token_balances, &broadcast_address_token_balance/1)
-  end
-
-  def handle_event({:chain_event, :address_current_token_balances, type, address_current_token_balances})
-      when type in [:realtime, :on_demand] do
-    Enum.each(address_current_token_balances, &broadcast_address_token_balance/1)
   end
 
   def handle_event(
@@ -115,7 +110,7 @@ defmodule BlockScoutWeb.Notifier do
   end
 
   def handle_event({:chain_event, :exchange_rate}) do
-    exchange_rate = Market.get_exchange_rate(Explorer.coin()) || Token.null()
+    exchange_rate = Market.get_coin_exchange_rate()
 
     market_history_data =
       case Market.fetch_recent_history() do
@@ -151,7 +146,7 @@ defmodule BlockScoutWeb.Notifier do
     |> Stream.map(
       &(InternalTransaction.where_nonpending_block()
         |> Repo.get_by(transaction_hash: &1.transaction_hash, index: &1.index)
-        |> Repo.preload([:from_address, :to_address, transaction: :block]))
+        |> Repo.preload([:from_address, :to_address, :block]))
     )
     |> Enum.each(&broadcast_internal_transaction/1)
   end
@@ -224,6 +219,12 @@ defmodule BlockScoutWeb.Notifier do
 
   def handle_event({:chain_event, :smart_contract_was_verified, :on_demand, [address_hash]}) do
     Endpoint.broadcast("addresses:#{to_string(address_hash)}", "smart_contract_was_verified", %{})
+  end
+
+  def handle_event({:chain_event, :address_current_token_balances, :on_demand, address_current_token_balances}) do
+    Endpoint.broadcast("addresses:#{address_current_token_balances.address_hash}", "address_current_token_balances", %{
+      address_current_token_balances: address_current_token_balances.address_current_token_balances
+    })
   end
 
   def handle_event(_), do: nil
@@ -323,7 +324,7 @@ defmodule BlockScoutWeb.Notifier do
       "balance_update",
       %{
         address: address,
-        exchange_rate: Market.get_exchange_rate(Explorer.coin()) || Token.null()
+        exchange_rate: Market.get_coin_exchange_rate()
       }
     )
   end

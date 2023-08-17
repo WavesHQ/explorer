@@ -13,7 +13,7 @@ defmodule BlockScoutWeb.ApiRouter do
   Router for API
   """
   use BlockScoutWeb, :router
-  alias BlockScoutWeb.{APIKeyV2Router, SmartContractsApiV2Router}
+  alias BlockScoutWeb.{AddressTransactionController, APIKeyV2Router, SmartContractsApiV2Router}
   alias BlockScoutWeb.Plug.{CheckAccountAPI, CheckApiV2, RateLimit}
 
   forward("/v2/smart-contracts", SmartContractsApiV2Router)
@@ -124,6 +124,7 @@ defmodule BlockScoutWeb.ApiRouter do
     scope "/search" do
       get("/", V2.SearchController, :search)
       get("/check-redirect", V2.SearchController, :check_redirect)
+      get("/quick", V2.SearchController, :quick_search)
     end
 
     scope "/config" do
@@ -152,6 +153,7 @@ defmodule BlockScoutWeb.ApiRouter do
     scope "/addresses" do
       get("/", V2.AddressController, :addresses_list)
       get("/:address_hash", V2.AddressController, :address)
+      get("/:address_hash/tabs-counters", V2.AddressController, :tabs_counters)
       get("/:address_hash/counters", V2.AddressController, :counters)
       get("/:address_hash/token-balances", V2.AddressController, :token_balances)
       get("/:address_hash/tokens", V2.AddressController, :tokens)
@@ -203,13 +205,35 @@ defmodule BlockScoutWeb.ApiRouter do
   scope "/v1", as: :api_v1 do
     pipe_through(:api)
     alias BlockScoutWeb.API.{EthRPC, RPC, V1}
-    alias BlockScoutWeb.API.V1.HealthController
+    alias BlockScoutWeb.API.V1.{GasPriceOracleController, HealthController}
     alias BlockScoutWeb.API.V2.SearchController
 
     # leave the same endpoint in v1 in order to keep backward compatibility
     get("/search", SearchController, :search)
-    get("/health", HealthController, :health)
-    get("/gas-price-oracle", V1.GasPriceOracleController, :gas_price_oracle)
+
+    @max_complexity 200
+
+    forward("/graphql", Absinthe.Plug,
+      schema: BlockScoutWeb.Schema,
+      analyze_complexity: true,
+      max_complexity: @max_complexity
+    )
+
+    get("/transactions-csv", AddressTransactionController, :transactions_csv)
+
+    get("/token-transfers-csv", AddressTransactionController, :token_transfers_csv)
+
+    get("/internal-transactions-csv", AddressTransactionController, :internal_transactions_csv)
+
+    get("/logs-csv", AddressTransactionController, :logs_csv)
+
+    scope "/health" do
+      get("/", HealthController, :health)
+      get("/liveness", HealthController, :liveness)
+      get("/readiness", HealthController, :readiness)
+    end
+
+    get("/gas-price-oracle", GasPriceOracleController, :gas_price_oracle)
 
     if Application.compile_env(:block_scout_web, __MODULE__)[:reading_enabled] do
       get("/supply", V1.SupplyController, :supply)

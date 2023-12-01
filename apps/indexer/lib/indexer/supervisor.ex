@@ -21,6 +21,7 @@ defmodule Indexer.Supervisor do
   alias Indexer.Fetcher.{
     BlockReward,
     CoinBalance,
+    CoinBalanceDailyUpdater,
     ContractCode,
     EmptyBlocksSanitizer,
     InternalTransaction,
@@ -28,6 +29,7 @@ defmodule Indexer.Supervisor do
     PendingTransaction,
     PolygonEdge,
     ReplacedTransaction,
+    RootstockData,
     Token,
     TokenBalance,
     TokenTotalSupplyUpdater,
@@ -36,6 +38,8 @@ defmodule Indexer.Supervisor do
     UncleBlock,
     Withdrawal
   }
+
+  alias Indexer.Fetcher.Zkevm.TransactionBatch
 
   alias Indexer.Temporary.{
     BlocksTransactionsMismatch,
@@ -132,11 +136,15 @@ defmodule Indexer.Supervisor do
         {Indexer.Fetcher.PolygonEdge.Withdrawal.Supervisor,
          [[memory_monitor: memory_monitor, json_rpc_named_arguments: json_rpc_named_arguments]]},
         {Indexer.Fetcher.PolygonEdge.WithdrawalExit.Supervisor, [[memory_monitor: memory_monitor]]},
+        configure(TransactionBatch.Supervisor, [
+          [json_rpc_named_arguments: json_rpc_named_arguments, memory_monitor: memory_monitor]
+        ]),
 
         # Out-of-band fetchers
         {EmptyBlocksSanitizer.Supervisor, [[json_rpc_named_arguments: json_rpc_named_arguments]]},
         {PendingTransactionsSanitizer, [[json_rpc_named_arguments: json_rpc_named_arguments]]},
         {TokenTotalSupplyUpdater, [[]]},
+        {CoinBalanceDailyUpdater, [[]]},
 
         # Temporary workers
         {UncatalogedTokenTransfers.Supervisor, [[]]},
@@ -146,17 +154,20 @@ defmodule Indexer.Supervisor do
          [[json_rpc_named_arguments: json_rpc_named_arguments, memory_monitor: memory_monitor]]},
         {PendingOpsCleaner, [[], []]},
         {PendingBlockOperationsSanitizer, [[]]},
+        {RootstockData.Supervisor, [[json_rpc_named_arguments: json_rpc_named_arguments]]},
 
         # Block fetchers
         configure(BlockRealtime.Supervisor, [
           %{block_fetcher: realtime_block_fetcher, subscribe_named_arguments: realtime_subscribe_named_arguments},
           [name: BlockRealtime.Supervisor]
         ]),
-        {BlockCatchup.Supervisor,
-         [
-           %{block_fetcher: block_fetcher, block_interval: block_interval, memory_monitor: memory_monitor},
-           [name: BlockCatchup.Supervisor]
-         ]},
+        configure(
+          BlockCatchup.Supervisor,
+          [
+            %{block_fetcher: block_fetcher, block_interval: block_interval, memory_monitor: memory_monitor},
+            [name: BlockCatchup.Supervisor]
+          ]
+        ),
         {Withdrawal.Supervisor, [[json_rpc_named_arguments: json_rpc_named_arguments]]}
       ]
       |> List.flatten()

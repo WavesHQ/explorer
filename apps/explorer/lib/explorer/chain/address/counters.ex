@@ -92,7 +92,7 @@ defmodule Explorer.Chain.Address.Counters do
     if is_nil(cached_value) || cached_value == 0 do
       count = CacheHelper.estimated_count_from("addresses", options)
 
-      max(count, 0)
+      if is_nil(count), do: 0, else: max(count, 0)
     else
       cached_value
     end
@@ -128,10 +128,10 @@ defmodule Explorer.Chain.Address.Counters do
   end
 
   def address_hash_to_transaction_count_query(address_hash) do
-    from(
-      transaction in Transaction,
-      where: transaction.to_address_hash == ^address_hash or transaction.from_address_hash == ^address_hash
-    )
+    dynamic = Transaction.where_transactions_to_from(address_hash)
+
+    Transaction
+    |> where([transaction], ^dynamic)
   end
 
   @spec address_hash_to_transaction_count(Hash.Address.t()) :: non_neg_integer()
@@ -483,7 +483,7 @@ defmodule Explorer.Chain.Address.Counters do
         case res do
           {:ok, {txs_type, txs_hashes}} when txs_type in @txs_types ->
             acc
-            |> (&Map.put(&1, :txs_types, [txs_type | &1[:txs_types] || []])).()
+            |> (&Map.put(&1, :txs_types, [txs_type | &1[:txs_types]])).()
             |> (&Map.put(&1, :txs_hashes, &1[:txs_hashes] ++ txs_hashes)).()
 
           {:ok, {type, counter}} ->

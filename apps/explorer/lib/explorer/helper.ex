@@ -1,6 +1,6 @@
 defmodule Explorer.Helper do
   @moduledoc """
-  Common explorer helper
+  Auxiliary common functions.
   """
 
   alias ABI.TypeDecoder
@@ -8,6 +8,8 @@ defmodule Explorer.Helper do
   alias Explorer.Chain.Data
 
   import Ecto.Query, only: [where: 3]
+
+  @max_safe_integer round(:math.pow(2, 63)) - 1
 
   @spec decode_data(binary() | map(), list()) :: list() | nil
   def decode_data("0x", types) do
@@ -30,13 +32,69 @@ defmodule Explorer.Helper do
     |> TypeDecoder.decode_raw(types)
   end
 
-  @spec parse_integer(binary() | nil) :: integer() | nil
-  def parse_integer(nil), do: nil
-
-  def parse_integer(string) do
-    case Integer.parse(string) do
-      {number, ""} -> number
+  def parse_integer(integer_string) when is_binary(integer_string) do
+    case Integer.parse(integer_string) do
+      {integer, ""} -> integer
       _ -> nil
+    end
+  end
+
+  def parse_integer(value) when is_integer(value) do
+    value
+  end
+
+  def parse_integer(_integer_string), do: nil
+
+  @doc """
+  Parses number from hex string or decimal number string
+  """
+  @spec parse_number(binary() | nil) :: integer() | nil
+  def parse_number(nil), do: nil
+
+  def parse_number(number) when is_integer(number) do
+    number
+  end
+
+  def parse_number("0x" <> hex_number) do
+    {number, ""} = Integer.parse(hex_number, 16)
+
+    number
+  end
+
+  def parse_number(""), do: 0
+
+  def parse_number(string_number) do
+    {number, ""} = Integer.parse(string_number, 10)
+
+    number
+  end
+
+  @doc """
+    Converts a string to an integer, ensuring it's non-negative and within the
+    acceptable range for database insertion.
+
+    ## Examples
+
+        iex> safe_parse_non_negative_integer("0")
+        {:ok, 0}
+
+        iex> safe_parse_non_negative_integer("-1")
+        {:error, :negative_integer}
+
+        iex> safe_parse_non_negative_integer("27606393966689717254124294199939478533331961967491413693980084341759630764504")
+        {:error, :too_big_integer}
+  """
+  def safe_parse_non_negative_integer(string) do
+    case Integer.parse(string) do
+      {num, ""} ->
+        case num do
+          _ when num > @max_safe_integer -> {:error, :too_big_integer}
+          _ when num < 0 -> {:error, :negative_integer}
+          _ -> {:ok, num}
+        end
+
+      _ ->
+        {:error, :invalid_integer}
     end
   end
 
@@ -57,5 +115,70 @@ defmodule Explorer.Helper do
       |> Enum.reduce(%{}, fn el, acc -> Map.put(acc, Map.from_struct(el)[references_field], el) end)
 
     Enum.map(list, fn el -> Map.put(el, preload_field, associated_elements[el[foreign_key_field]]) end)
+  end
+
+  @doc """
+  Decode json
+  """
+  @spec decode_json(any()) :: map() | list() | nil
+  def decode_json(data, nft? \\ false)
+
+  def decode_json(nil, _), do: nil
+
+  def decode_json(data, nft?) do
+    if String.valid?(data) do
+      safe_decode_json(data, nft?)
+    else
+      data
+      |> :unicode.characters_to_binary(:latin1)
+      |> safe_decode_json(nft?)
+    end
+  end
+
+  defp safe_decode_json(data, nft?) do
+    case Jason.decode(data) do
+      {:ok, decoded} -> decoded
+      _ -> if nft?, do: {:error, data}, else: %{error: data}
+    end
+  end
+
+  @doc """
+  Checks if input is a valid URL
+  """
+  @spec validate_url(String.t() | nil) :: {:ok, String.t()} | :error
+  def validate_url(url) when is_binary(url) do
+    case URI.parse(url) do
+      %URI{host: nil} -> :error
+      _ -> {:ok, url}
+    end
+  end
+
+  def validate_url(_), do: :error
+
+  @doc """
+    Validate url
+  """
+  @spec valid_url?(String.t()) :: boolean()
+  def valid_url?(string) when is_binary(string) do
+    uri = URI.parse(string)
+
+    !is_nil(uri.scheme) && !is_nil(uri.host)
+  end
+
+  def valid_url?(_), do: false
+
+  @doc """
+  Compare two values and returns either :lt, :eq or :gt.
+
+  Please be careful: this function compares arguments using `<` and `>`,
+  hence it should not be used to compare structures (for instance %DateTime{} or %Decimal{}).
+  """
+  @spec compare(term(), term()) :: :lt | :eq | :gt
+  def compare(a, b) do
+    cond do
+      a < b -> :lt
+      a > b -> :gt
+      true -> :eq
+    end
   end
 end

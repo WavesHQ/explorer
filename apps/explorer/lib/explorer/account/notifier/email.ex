@@ -5,7 +5,7 @@ defmodule Explorer.Account.Notifier.Email do
 
   require Logger
 
-  alias BlockScoutWeb.WebRouter.Helpers
+  alias BlockScoutWeb.Routers.WebRouter.Helpers
   alias Explorer.Account.{Identity, Watchlist, WatchlistAddress, WatchlistNotification}
   alias Explorer.Repo
 
@@ -58,6 +58,9 @@ defmodule Explorer.Account.Notifier.Email do
         "Token ID: " <> subject <> " of "
 
       "ERC-1155" ->
+        "Token ID: " <> subject <> " of "
+
+      "ERC-404" ->
         "Token ID: " <> subject <> " of "
     end
   end

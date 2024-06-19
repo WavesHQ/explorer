@@ -202,7 +202,7 @@ defmodule BlockScoutWeb.API.V2.SearchControllerTest do
     end
 
     test "search transaction", %{conn: conn} do
-      tx = insert(:transaction)
+      tx = insert(:transaction, block_timestamp: nil)
 
       request = get(conn, "/api/v2/search?q=#{tx.hash}")
       assert response = json_response(request, 200)
@@ -270,6 +270,24 @@ defmodule BlockScoutWeb.API.V2.SearchControllerTest do
       assert response = json_response(request, 200)
 
       assert Enum.count(response["items"]) == 4
+      assert response["next_page_params"] == nil
+    end
+
+    test "search for a big positive integer", %{conn: conn} do
+      big_integer = :math.pow(2, 64) |> round |> :erlang.integer_to_binary()
+      request = get(conn, "/api/v2/search?q=#{big_integer}")
+      assert response = json_response(request, 200)
+
+      assert Enum.count(response["items"]) == 0
+      assert response["next_page_params"] == nil
+    end
+
+    test "search for a big negative integer", %{conn: conn} do
+      big_integer = (:math.pow(2, 64) - 1) |> round |> :erlang.integer_to_binary()
+      request = get(conn, "/api/v2/search?q=#{big_integer}")
+      assert response = json_response(request, 200)
+
+      assert Enum.count(response["items"]) == 0
       assert response["next_page_params"] == nil
     end
   end

@@ -10,11 +10,11 @@ defmodule Explorer.Chain.SmartContract.Proxy.EIP1167 do
   @doc """
   Get implementation address following EIP-1167
   """
-  @spec get_implementation_address(Hash.Address.t(), Keyword.t()) :: SmartContract.t() | nil
-  def get_implementation_address(address_hash, options \\ []) do
+  @spec get_implementation_smart_contract(Hash.Address.t(), Keyword.t()) :: SmartContract.t() | nil
+  def get_implementation_smart_contract(address_hash, options \\ []) do
     address_hash
     |> get_implementation_address_hash_string(options)
-    |> implementation_to_smart_contract(options)
+    |> Proxy.implementation_to_smart_contract(options)
   end
 
   @doc """
@@ -43,19 +43,15 @@ defmodule Explorer.Chain.SmartContract.Proxy.EIP1167 do
 
   defp get_proxy_eip_1167(contract_bytecode) do
     case contract_bytecode do
-      "363d3d373d3d3d363d73" <> <<template_address::binary-size(40)>> <> _ ->
+      "363d3d373d3d3d363d73" <> <<template_address::binary-size(40)>> <> "5af43d82803e903d91602b57fd5bf3" ->
+        "0x" <> template_address
+
+      # https://medium.com/coinmonks/the-more-minimal-proxy-5756ae08ee48
+      "3d3d3d3d363d3d37363d73" <> <<template_address::binary-size(40)>> <> "5af43d3d93803e602a57fd5bf3" ->
         "0x" <> template_address
 
       _ ->
         nil
     end
-  end
-
-  defp implementation_to_smart_contract(nil, _options), do: nil
-
-  defp implementation_to_smart_contract(address_hash, options) do
-    address_hash
-    |> SmartContract.get_smart_contract_query()
-    |> Chain.select_repo(options).one(timeout: 10_000)
   end
 end

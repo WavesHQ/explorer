@@ -4,7 +4,7 @@ defmodule BlockScoutWeb.SmartContractControllerTest do
   import Mox
 
   alias Explorer.Chain.{Address, Hash}
-  alias Explorer.Factory
+  alias Explorer.{Factory, TestHelper}
 
   setup :set_mox_from_context
 
@@ -85,6 +85,8 @@ defmodule BlockScoutWeb.SmartContractControllerTest do
         ],
         contract_code_md5: "123"
       )
+
+      TestHelper.get_eip1967_implementation_zero_addresses()
 
       path =
         smart_contract_path(BlockScoutWeb.Endpoint, :index,
@@ -276,32 +278,15 @@ defmodule BlockScoutWeb.SmartContractControllerTest do
   end
 
   defp blockchain_get_implementation_mock do
-    expect(EthereumJSONRPC.Mox, :json_rpc, fn %{
-                                                id: 0,
-                                                method: "eth_getStorageAt",
-                                                params: [
-                                                  _,
-                                                  "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc",
-                                                  "latest"
-                                                ]
-                                              },
-                                              _options ->
-      {:ok, "0xcebb2CCCFe291F0c442841cBE9C1D06EED61Ca02"}
-    end)
+    EthereumJSONRPC.Mox
+    |> TestHelper.mock_logic_storage_pointer_request(false, "0xcebb2CCCFe291F0c442841cBE9C1D06EED61Ca02")
   end
 
   defp blockchain_get_implementation_mock_2 do
-    expect(EthereumJSONRPC.Mox, :json_rpc, fn %{
-                                                id: 0,
-                                                method: "eth_getStorageAt",
-                                                params: [
-                                                  _,
-                                                  "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc",
-                                                  "latest"
-                                                ]
-                                              },
-                                              _options ->
-      {:ok, "0x000000000000000000000000cebb2CCCFe291F0c442841cBE9C1D06EED61Ca02"}
-    end)
+    EthereumJSONRPC.Mox
+    |> TestHelper.mock_logic_storage_pointer_request(
+      false,
+      "0x000000000000000000000000cebb2CCCFe291F0c442841cBE9C1D06EED61Ca02"
+    )
   end
 end

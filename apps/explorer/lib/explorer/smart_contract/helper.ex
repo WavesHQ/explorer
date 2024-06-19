@@ -3,8 +3,9 @@ defmodule Explorer.SmartContract.Helper do
   SmartContract helper functions
   """
 
-  alias Explorer.Chain
+  alias Explorer.{Chain, Helper}
   alias Explorer.Chain.{Hash, SmartContract}
+  alias Explorer.SmartContract.Writer
   alias Phoenix.HTML
 
   def queriable_method?(method) do
@@ -18,13 +19,14 @@ defmodule Explorer.SmartContract.Helper do
   def error?(function), do: function["type"] == "error"
 
   @doc """
-    Checks whether the function which is not queriable can be consider as read function or not.
+    Checks whether the function which is not queriable can be considered as read
+    function or not.
   """
   @spec read_with_wallet_method?(%{}) :: true | false
   def read_with_wallet_method?(function),
     do:
-      !error?(function) && !event?(function) && !constructor?(function) && nonpayable?(function) &&
-        !empty_outputs?(function)
+      !error?(function) && !event?(function) && !constructor?(function) &&
+        !empty_outputs?(function) && !Writer.write_function?(function)
 
   def empty_outputs?(function), do: is_nil(function["outputs"]) || function["outputs"] == []
 
@@ -54,10 +56,14 @@ defmodule Explorer.SmartContract.Helper do
   def add_contract_code_md5(%{address_hash: address_hash} = attrs) do
     case Chain.hash_to_address(address_hash) do
       {:ok, address} ->
-        contract_code_md5 = contract_code_md5(address.contract_code.bytes)
+        if address.contract_code do
+          contract_code_md5 = contract_code_md5(address.contract_code.bytes)
 
-        attrs
-        |> Map.put_new(:contract_code_md5, contract_code_md5)
+          attrs
+          |> Map.put_new(:contract_code_md5, contract_code_md5)
+        else
+          attrs
+        end
 
       _ ->
         attrs
@@ -193,4 +199,14 @@ defmodule Explorer.SmartContract.Helper do
       "creationCode" => to_string(init)
     }
   end
+
+  @doc """
+    Prepare license type for verification.
+  """
+  @spec prepare_license_type(any()) :: atom() | integer() | binary() | nil
+  def prepare_license_type(atom_or_integer) when is_atom(atom_or_integer) or is_integer(atom_or_integer),
+    do: atom_or_integer
+
+  def prepare_license_type(binary) when is_binary(binary), do: Helper.parse_integer(binary) || binary
+  def prepare_license_type(_), do: nil
 end

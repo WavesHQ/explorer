@@ -39,13 +39,28 @@ defmodule Indexer.Fetcher.TokenTotalSupplyUpdater do
     {:noreply, []}
   end
 
+  # defp schedule_next_update do
+  #   update_interval =
+  #     case AverageBlockTime.average_block_time() do
+  #       {:error, :disabled} -> @default_update_interval
+  #       block_time -> round(Duration.to_milliseconds(block_time))
+  #     end
+
+  #   Process.send_after(self(), :update, update_interval)
+  # end
+
   defp schedule_next_update do
     update_interval =
       case AverageBlockTime.average_block_time() do
         {:error, :disabled} -> @default_update_interval
-        block_time -> round(Duration.to_milliseconds(block_time))
+        block_time ->
+          update_interval_milliseconds = round(Duration.to_milliseconds(block_time))
+          if update_interval_milliseconds >= 0 do
+            update_interval_milliseconds
+          else
+            @default_update_interval
+          end
       end
-
     Process.send_after(self(), :update, update_interval)
   end
 

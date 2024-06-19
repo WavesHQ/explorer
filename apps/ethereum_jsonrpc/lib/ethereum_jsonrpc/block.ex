@@ -852,6 +852,16 @@ defmodule EthereumJSONRPC.Block do
     {key, timestamp_to_datetime(timestamp)}
   end
 
+  # defp entry_to_elixir({"nonce" = key, nonce}, _block) do
+  #   # TODO (HARSH) find better alternative soln
+  #   if nonce == "0x0", do: {key, 0}, else: {key, quantity_to_integer(nonce)}
+  # end
+
+  # defp entry_to_elixir({"size" = key, size}, _block) do
+  #   # TODO (HARSH) find better alternative soln
+  #   if size == "", do: {key,  0}, else: {key, quantity_to_integer(size)}
+  # end
+
   defp entry_to_elixir({"transactions" = key, transactions}, %{"timestamp" => block_timestamp}) do
     {key, Transactions.to_elixir(transactions, timestamp_to_datetime(block_timestamp))}
   end
